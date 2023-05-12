@@ -88,14 +88,16 @@ class TableDate extends TableAccess
     {
         global $gCurrentUserId;
 
-        if($this->allowedToParticipate() && !$this->deadlineExceeded()) {
-            if(!is_object($this->mParticipants)) {
+        if ($this->allowedToParticipate() && !$this->deadlineExceeded()) {
+            if (!is_object($this->mParticipants)) {
                 $this->mParticipants = new Participants($this->db, $this->getValue('dat_rol_id'));
             }
 
-            if((int) $this->getValue('dat_max_members') === 0
-            || ($this->mParticipants->getCount() < (int) $this->getValue('dat_max_members'))
-            || $this->mParticipants->isMemberOfEvent($gCurrentUserId)) {
+            if (
+                (int) $this->getValue('dat_max_members') === 0
+                || ($this->mParticipants->getCount() < (int) $this->getValue('dat_max_members'))
+                || $this->mParticipants->isMemberOfEvent($gCurrentUserId)
+            ) {
                 return true;
             }
         }
@@ -120,7 +122,7 @@ class TableDate extends TableAccess
      */
     public function delete()
     {
-        $datId     = (int) $this->getValue('dat_id');
+        $datId = (int) $this->getValue('dat_id');
         $datRoleId = (int) $this->getValue('dat_rol_id');
 
         $this->db->startTransaction();
@@ -131,7 +133,7 @@ class TableDate extends TableAccess
 
         // if date has participants then the role with their memberships must be deleted
         if ($datRoleId > 0) {
-            $sql = 'UPDATE '.TBL_DATES.'
+            $sql = 'UPDATE ' . TBL_DATES . '
                        SET dat_rol_id = NULL
                      WHERE dat_id = ? -- $datId';
             $this->db->queryPrepared($sql, array($datId));
@@ -154,8 +156,8 @@ class TableDate extends TableAccess
     {
         $replaces = array(
             '\\' => '\\\\',
-            ';'  => '\;',
-            ','  => '\,',
+            ';' => '\;',
+            ',' => '\,',
             "\n" => '\n',
             "\r" => '',
             '<br />' => '\n' // workaround
@@ -174,8 +176,8 @@ class TableDate extends TableAccess
     {
         global $gSettingsManager;
 
-        $beginDate = $this->getValue('dat_begin', $gSettingsManager->getString('system_date')). ' ';
-        $endDate   = '';
+        $beginDate = $this->getValue('dat_begin', $gSettingsManager->getString('system_date')) . ' ';
+        $endDate = '';
 
         if ($this->getValue('dat_all_day') != 1) {
             $beginDate .= $this->getValue('dat_begin', $gSettingsManager->getString('system_time'));
@@ -187,10 +189,10 @@ class TableDate extends TableAccess
                 $endDate .= $this->getValue('dat_end', $gSettingsManager->getString('system_date'));
             }
             if ($this->getValue('dat_all_day') != 1) {
-                $endDate .= ' '. $this->getValue('dat_end', $gSettingsManager->getString('system_time'));
+                $endDate .= ' ' . $this->getValue('dat_end', $gSettingsManager->getString('system_time'));
             }
             if ($endDate !== '') {
-                $endDate = ' - '. $endDate;
+                $endDate = ' - ' . $endDate;
             }
         }
 
@@ -204,9 +206,9 @@ class TableDate extends TableAccess
      */
     public function getIcal($domain)
     {
-        $iCal = $this->getIcalHeader().
-                $this->getIcalVEvent($domain).
-                $this->getIcalFooter();
+        $iCal = $this->getIcalHeader() .
+            $this->getIcalVEvent($domain) .
+            $this->getIcalFooter();
 
         return $iCal;
     }
@@ -293,7 +295,7 @@ class TableDate extends TableAccess
             $iCalVEvent[] = 'DTEND;VALUE=DATE:' . $dateTime->add($oneDayOffset)->format('Ymd');
         } else {
             $iCalVEvent[] = 'DTSTART;TZID=' . date_default_timezone_get() . ':' . $this->getValue('dat_begin', $dateTimeFormat);
-            $iCalVEvent[] = 'DTEND;TZID='   . date_default_timezone_get() . ':' . $this->getValue('dat_end', $dateTimeFormat);
+            $iCalVEvent[] = 'DTEND;TZID=' . date_default_timezone_get() . ':' . $this->getValue('dat_end', $dateTimeFormat);
         }
 
         $iCalVEvent[] = 'END:VEVENT';
@@ -355,7 +357,7 @@ class TableDate extends TableAccess
             $validDeadline = $this->getValue('dat_deadline');
         }
 
-        $objDateDeadline = \DateTime::createFromFormat($gSettingsManager->getString('system_date').' '.$gSettingsManager->getString('system_time'), $validDeadline);
+        $objDateDeadline = \DateTime::createFromFormat($gSettingsManager->getString('system_date') . ' ' . $gSettingsManager->getString('system_time'), $validDeadline);
 
         return $objDateDeadline->format('Y-m-d H:i:s');
     }
@@ -371,11 +373,15 @@ class TableDate extends TableAccess
     {
         global $gCurrentOrganization, $gCurrentUser;
 
-        if ($gCurrentUser->editDates()
-        || in_array((int) $this->getValue('cat_id'), $gCurrentUser->getAllEditableCategories('DAT'), true)) {
+        if (
+            $gCurrentUser->editDates()
+            || in_array((int) $this->getValue('cat_id'), $gCurrentUser->getAllEditableCategories('DAT'), true)
+        ) {
             // if category belongs to current organization than events are editable
-            if ($this->getValue('cat_org_id') > 0
-            && (int) $this->getValue('cat_org_id') === $GLOBALS['gCurrentOrgId']) {
+            if (
+                $this->getValue('cat_org_id') > 0
+                && (int) $this->getValue('cat_org_id') === $GLOBALS['gCurrentOrgId']
+            ) {
                 return true;
             }
 
@@ -455,18 +461,18 @@ class TableDate extends TableAccess
                 return parent::setValue($columnName, $newValue, false);
             } elseif ($columnName === 'dat_cat_id') {
                 $category = new TableCategory($this->db);
-                if(is_int($newValue)) {
-                    if(!$category->readDataById($newValue)) {
-                        throw new AdmException('No Category with the given id '. $newValue. ' was found in the database.');
+                if (is_int($newValue)) {
+                    if (!$category->readDataById($newValue)) {
+                        throw new AdmException('No Category with the given id ' . $newValue . ' was found in the database.');
                     }
                 } else {
-                    if(!$category->readDataByUuid($newValue)) {
-                        throw new AdmException('No Category with the given uuid '. $newValue. ' was found in the database.');
+                    if (!$category->readDataByUuid($newValue)) {
+                        throw new AdmException('No Category with the given uuid ' . $newValue . ' was found in the database.');
                     }
                     $newValue = $category->getValue('cat_id');
                 }
             } elseif ($columnName === 'dat_deadline' && (string) $newValue !== '') {
-                if(!DateTime::createFromFormat('Y-m-d H:i', $newValue)) {
+                if (!DateTime::createFromFormat('Y-m-d H:i', $newValue)) {
                     throw new AdmException($gL10n->get('SYS_DATE_INVALID', array($gL10n->get('DAT_DEADLINE'), 'YYYY-MM-DD')));
                 } elseif (strtotime($newValue) > strtotime($this->getValue('dat_begin'))) {
                     throw new AdmException('SYS_DEADLINE_AFTER_START');
