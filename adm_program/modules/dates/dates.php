@@ -337,11 +337,11 @@ if ($datesResult['totalCount'] === 0) {
                         data-href="' . SecurityUtils::encodeUrl(
                         ADMIDIO_URL . '/adm_program/system/popup_message.php',
                         array(
-                        'type' => 'dat',
-                        'element_id' => 'dat_' . $dateUuid,
-                        'name' => $date->getValue('dat_begin', $gSettingsManager->getString('system_date')) . ' ' . $dateHeadline,
-                        'database_id' => $dateUuid
-                    )
+                            'type' => 'dat',
+                            'element_id' => 'dat_' . $dateUuid,
+                            'name' => $date->getValue('dat_begin', $gSettingsManager->getString('system_date')) . ' ' . $dateHeadline,
+                            'database_id' => $dateUuid
+                        )
                     ) . '">
                         <i class="fas fa-trash-alt" data-toggle="tooltip" title="' . $gL10n->get('SYS_DELETE') . '"></i></a>';
             }
@@ -427,7 +427,7 @@ if ($datesResult['totalCount'] === 0) {
         }
 
         // if current user is allowed to participate then show buttons for participation
-        if ($date->possibleToParticipate()) {
+        if ($date->allowedToParticipate()) {
             $buttonClass = '';
 
             if ($date->getValue('dat_deadline') !== null) {
@@ -492,9 +492,9 @@ if ($datesResult['totalCount'] === 0) {
                         }
                     }
                 }
-
-                if ($participateModalForm === false) {
-                    $outputButtonParticipation = '
+                if ($date->allowedToParticipate() && !$date->deadlineExceeded()) {
+                    if ($participateModalForm === false) {
+                        $outputButtonParticipation = '
                         <div class="btn-group" role="group">
                             <button class="btn btn-secondary dropdown-toggle ' . $buttonClass . '" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' . $iconParticipationStatus . $buttonText . '</button>
                             <ul class="dropdown-menu">
@@ -503,28 +503,28 @@ if ($datesResult['totalCount'] === 0) {
                                         <i class="fas fa-check-circle" data-toggle="tooltip" title="' . $gL10n->get('SYS_EDIT') . '"></i>' . $gL10n->get('SYS_PARTICIPATE') . '
                                     </a>
                                 </li>';
-                    if ($gSettingsManager->getBool('dates_may_take_part')) {
-                        $outputButtonParticipation .= '<li>
+                        if ($gSettingsManager->getBool('dates_may_take_part')) {
+                            $outputButtonParticipation .= '<li>
                                         <a class="btn admidio-event-approval-state-tentative ' . $disableStatusTentative . '" href="' . SecurityUtils::encodeUrl(ADMIDIO_URL . FOLDER_MODULES . '/dates/dates_function.php', array('mode' => '7', 'dat_uuid' => $dateUuid)) . '">
                                             <i class="fas fa-question-circle" data-toggle="tooltip" title="' . $gL10n->get('DAT_USER_TENTATIVE') . '"></i>' . $gL10n->get('DAT_USER_TENTATIVE') . '
                                         </a>
                                     </li>';
-                    }
-                    $outputButtonParticipation .= '<li>
+                        }
+                        $outputButtonParticipation .= '<li>
                                     <a class="btn admidio-event-approval-state-cancel" href="' . SecurityUtils::encodeUrl(ADMIDIO_URL . FOLDER_MODULES . '/dates/dates_function.php', array('mode' => '4', 'dat_uuid' => $dateUuid)) . '">
                                         <i class="fas fa-times-circle" data-toggle="tooltip" title="' . $gL10n->get('DAT_CANCEL') . '"></i>' . $gL10n->get('DAT_CANCEL') . '
                                     </a>
                                 </li>
                             </ul>
                         </div>';
-                } else {
-                    $outputButtonParticipation = '
+                    } else {
+                        $outputButtonParticipation = '
                         <div class="btn-group" role="group">
                             <button class="btn btn-secondary openPopup" href="javascript:void(0);"
                                 data-href="' . SecurityUtils::encodeUrl(ADMIDIO_URL . FOLDER_MODULES . '/dates/popup_participation.php', array('dat_uuid' => $dateUuid)) . '">' . $iconParticipationStatus . $buttonText . '
                         </div>';
+                    }
                 }
-
                 // Link to participants list
                 if ($gCurrentUser->hasRightViewRole($dateRolId)) {
                     if ($outputNumberMembers > 0 || $outputNumberLeaders > 0) {
@@ -574,22 +574,29 @@ if ($datesResult['totalCount'] === 0) {
                     }
                 }
             }
-        } elseif ($date->deadlineExceeded() || $outputNumberMembers >= (int) $date->getValue('dat_max_members')) {
-            // Show warning for member of the date role if deadline is exceeded and now no changes are possible anymore
-            if ($participants->isMemberOfEvent($gCurrentUserId)) {
-                if ($getView !== 'detail') {
-                    $outputButtonParticipation = '<span class="' . $buttonClass . '">' . $iconParticipationStatus . '</span>';
-                }
-                $attentionDeadline = '
+            if (!$date->possibleToParticipate() && !$date->endDateExceeded()) {
+                // Show warning for member of the date role if deadline is exceeded and now no changes are possible anymore
+                if ($participants->isMemberOfEvent($gCurrentUserId) && $date->deadlineExceeded()) {
+                    if ($getView !== 'detail') {
+                        $outputButtonParticipation = '<span class="' . $buttonClass . '">' . $iconParticipationStatus . '</span>';
+                    }
+                    $attentionDeadline = '
                         <div class="alert alert-info" role="alert">
                             <span class="' . $buttonClass . '">' . $iconParticipationStatus . ' ' . $buttonText . '</span>
                             <i class="fas fa-info-circle admidio-info-icon" data-toggle="popover"
                                 data-html="true" data-trigger="hover click" data-placement="auto"
                                 title="' . $gL10n->get('SYS_NOTE') . '" data-content="' . SecurityUtils::encodeHTML($gL10n->get('DAT_DEADLINE_ATTENTION')) . '"></i>
                         </div>';
-            } else {
-                $attentionDeadline = '<div class="alert alert-info" role="alert">' . $gL10n->get('DAT_REGISTRATION_NOT_POSSIBLE') . '</div>';
-                $iconParticipationStatus = '';
+                } else {
+                    $participationForbiddenReason = '';
+                    if ($date->deadlineExceeded()) {
+                        $participationForbiddenReason = 'Der Anmeldeschluss wurde erreicht.';
+                    } elseif ($date->maxParticipantsExceeded()) {
+                        $participationForbiddenReason = 'Die maximale Teilnehmeranzahl (' . $date->getValue('dat_max_members') . ') wurde erreicht';
+                    }
+                    $attentionDeadline = '<div class="alert alert-info" role="alert">' . $gL10n->get('DAT_REGISTRATION_NOT_POSSIBLE') . ' ' . $participationForbiddenReason . '</div>';
+                    $iconParticipationStatus = '';
+                }
             }
         }
 
@@ -685,11 +692,11 @@ if ($datesResult['totalCount'] === 0) {
                                                 data-href="' . SecurityUtils::encodeUrl(
                             ADMIDIO_URL . '/adm_program/system/popup_message.php',
                             array(
-                            'type' => 'dat',
-                            'element_id' => 'dat_' . $dateUuid,
-                            'name' => $date->getValue('dat_begin', $gSettingsManager->getString('system_date')) . ' ' . $dateHeadline,
-                            'database_id' => $dateUuid
-                        )
+                                'type' => 'dat',
+                                'element_id' => 'dat_' . $dateUuid,
+                                'name' => $date->getValue('dat_begin', $gSettingsManager->getString('system_date')) . ' ' . $dateHeadline,
+                                'database_id' => $dateUuid
+                            )
                         ) . '">
                                                 <i class="fas fa-trash-alt" data-toggle="tooltip"></i> ' . $gL10n->get('SYS_DELETE') . '</a>');
                 }

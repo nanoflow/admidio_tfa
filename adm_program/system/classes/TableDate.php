@@ -94,8 +94,7 @@ class TableDate extends TableAccess
             }
 
             if (
-                (int) $this->getValue('dat_max_members') === 0
-                || ($this->mParticipants->getCount() < (int) $this->getValue('dat_max_members'))
+                !$this->maxParticipantsExceeded()
                 || $this->mParticipants->isMemberOfEvent($gCurrentUserId)
             ) {
                 return true;
@@ -104,6 +103,30 @@ class TableDate extends TableAccess
 
         return false;
     }
+
+    public function maxParticipantsExceeded()
+    {
+        if (!is_object($this->mParticipants)) {
+            $this->mParticipants = new Participants($this->db, $this->getValue('dat_rol_id'));
+        }
+        if (
+            (int) $this->getValue('dat_max_members') === 0
+            || ($this->mParticipants->getCount() < (int) $this->getValue('dat_max_members'))
+        ) {
+            return false;
+        }
+        return true;
+    }
+
+    public function endDateExceeded()
+    {
+        global $gSettingsManager;
+
+        $objDateEnd = \DateTime::createFromFormat($gSettingsManager->getString('system_date') . ' ' . $gSettingsManager->getString('system_time'), $this->getValue('dat_end'));
+
+        return $objDateEnd->format('Y-m-d H:i:s') < DATETIME_NOW;
+    }
+
 
     /**
      * Check if the deadline is in the future than return false or
